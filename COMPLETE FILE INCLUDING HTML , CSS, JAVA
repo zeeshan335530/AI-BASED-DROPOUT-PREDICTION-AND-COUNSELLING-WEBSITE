@@ -1,0 +1,1001 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Minimal Student Dashboard — Colorful</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    /* ---- Theme variables and transition ---- */
+    :root{
+      /* Colorful light theme (default) */
+      --bg-1: #fff7ed; /* warm */
+      --bg-2: #eef2ff; /* cool */
+      --card: #ffffff;
+      --muted: #6b7280;
+      --accent: #06b6d4; /* cyan */
+      --accent2: #f472b6; /* pink */
+      --accent3: #f59e0b; /* amber */
+      --glass: rgba(2,6,23,0.02);
+      --text: #0f1724;
+      --shadow: 0 6px 20px rgba(15,23,36,0.06);
+      --border: rgba(15,23,36,0.03);
+      --btn-text: #ffffff;
+      --login-overlay: linear-gradient(180deg, rgba(255,255,255,0.95), rgba(255,255,255,0.9));
+      --chat-bg: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(255,255,255,0.95));
+    }
+
+    /* dark theme - toggled with .theme-dark on body */
+    body.theme-dark{
+      --bg-1: #0f1724;
+      --bg-2: #071129;
+      --card: #0b1220;
+      --muted: #94a3b8;
+      --accent: #22d3ee;
+      --accent2: #fb7185;
+      --accent3: #f59e0b;
+      --glass: rgba(255,255,255,0.03);
+      --text: #e6eef6;
+      --shadow: 0 6px 20px rgba(2,6,23,0.6);
+      --border: rgba(255,255,255,0.04);
+      --btn-text: #06202a;
+      --login-overlay: linear-gradient(180deg, rgba(2,6,23,0.95), rgba(2,6,23,0.97));
+      --chat-bg: linear-gradient(180deg, rgba(7,12,20,0.95), rgba(7,12,20,0.9));
+    }
+
+    /* Animated transitions when switching theme */
+    * { box-sizing: border-box; transition: background 450ms ease, color 450ms ease, border-color 350ms ease, box-shadow 350ms ease; }
+    html,body{height:100%;margin:0;background:linear-gradient(180deg,var(--bg-1) 0%, var(--bg-2) 100%);color:var(--text); font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;}
+    .app{display:grid;grid-template-columns:260px 1fr;gap:20px;min-height:100vh;padding:20px}
+    .sidebar{background:linear-gradient(180deg, rgba(255,255,255,0.8), rgba(255,255,255,0.95));padding:18px;border-radius:12px;display:flex;flex-direction:column;gap:12px;border:1px solid var(--border);box-shadow:var(--shadow)}
+    body.theme-dark .sidebar{ background: linear-gradient(180deg, rgba(11,18,32,0.6), rgba(7,10,20,0.6)); }
+    .brand{font-weight:700;font-size:18px;color:var(--accent)}
+    .nav{display:flex;flex-direction:column;gap:6px;margin-top:6px}
+    .nav button{background:transparent;border:none;color:var(--muted);padding:10px;border-radius:8px;text-align:left;cursor:pointer}
+    .nav button.active{color:var(--text);background:linear-gradient(90deg, rgba(6,182,212,0.08), rgba(244,114,182,0.04))}
+    .main{display:flex;flex-direction:column;gap:16px}
+    .header{display:flex;justify-content:space-between;align-items:center}
+    .card{background:var(--card);padding:16px;border-radius:12px;box-shadow:var(--shadow);border:1px solid var(--border)}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+    .counter{display:flex;flex-direction:column;gap:8px}
+    .count{font-size:28px;font-weight:700;color:var(--accent);transition:all .4s}
+    .tiny{font-size:12px;color:var(--muted)}
+    .animated-bar{height:8px;background:linear-gradient(90deg,var(--accent), var(--accent2));border-radius:999px;transform-origin:left;animation:grow 1.2s ease forwards}
+    @keyframes grow{from{transform:scaleX(0.02)} to{transform:scaleX(1)}}
+    /* form styles */
+    label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
+    input,select,textarea{width:100%;padding:10px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text)}
+    .row{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+    .btn{padding:10px 12px;border-radius:8px;border:none;cursor:pointer;background:linear-gradient(90deg,var(--accent), var(--accent2));color:var(--btn-text);font-weight:600}
+    .muted{color:var(--muted)}
+    .list{display:flex;flex-direction:column;gap:8px}
+    .item{display:flex;justify-content:space-between;align-items:center;padding:8px;border-radius:8px;background:linear-gradient(180deg, rgba(2,6,23,0.01), rgba(2,6,23,0.02));border:1px solid var(--border)}
+    body.theme-dark .item{ background: linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.015));}
+    .small{font-size:13px}
+    .center{display:flex;align-items:center;gap:10px}
+    footer{opacity:.8;font-size:12px;text-align:center;margin-top:20px}
+    /* login overlay */
+    .overlay{position:fixed;inset:0;background:var(--login-overlay);Display:flex;align-items:center;justify-content:center;z-index:999}
+    .login-card{width:360px;background:linear-gradient(180deg,#ffffff,#fffbf7);padding:20px;border-radius:12px;box-shadow:0 10px 40px rgba(2,6,23,0.08);border:1px solid var(--border)}
+    body.theme-dark .login-card{ background: linear-gradient(180deg,#071023,#081025); color:var(--text); }
+    .login-card h3{margin:0 0 10px 0}
+    .tiny-muted{font-size:12px;color:var(--muted)}
+    .logoutBtn{background:transparent;border:1px solid var(--border);padding:6px 10px;border-radius:8px;color:var(--muted);cursor:pointer}
+    /* responsive */
+    @media (max-width:880px){.app{grid-template-columns:1fr;}.sidebar{flex-direction:row;overflow:auto;padding:10px}.nav{flex-direction:row;gap:8px}.row{grid-template-columns:1fr}}
+    /* Chatbot styles (counselling) */
+    .chat-card{margin-top:12px;border-radius:10px;padding:12px;background:var(--chat-bg);border:1px solid var(--border);box-shadow:var(--shadow)}
+    .chat-window{height:220px;overflow:auto;padding:8px;display:flex;flex-direction:column;gap:8px;border-radius:8px;background:transparent}
+    .bubble{max-width:78%;padding:8px 10px;border-radius:12px;line-height:1.3}
+    .bubble.user{align-self:flex-end;background:linear-gradient(90deg,var(--accent),var(--accent2));color:var(--btn-text)}
+    .bubble.bot{align-self:flex-start;background:linear-gradient(90deg, rgba(0,0,0,0.03), rgba(0,0,0,0.02));color:var(--text);border:1px solid var(--border)}
+    .chat-controls{display:flex;gap:8px;margin-top:8px}
+    .theme-toggle{padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:transparent;cursor:pointer;color:var(--muted)}
+    .save-chat{background:linear-gradient(90deg,var(--accent3), var(--accent2)); color:var(--btn-text); border:none; padding:8px 10px;border-radius:8px; cursor:pointer}
+    /* subtle animation for switching theme icon */
+    .theme-toggle .icon{display:inline-block;transition:transform 300ms ease}
+    .theme-toggle[data-theme="dark"] .icon{transform:rotate(180deg)}
+
+    /* Custom style for simulated OTP input alignment */
+    .otp-control {
+      display: flex;
+      gap: 8px;
+    }
+    .otp-control button {
+      flex-shrink: 0;
+      width: 120px;
+    }
+  </style>
+</head>
+<body>
+  <div id="loginOverlay" class="overlay" style="display:none">
+    <div class="login-card">
+      <h3>Sign in to Dashboard</h3>
+      <div class="tiny-muted">Create an account or sign in. Data will remain local to your browser.</div>
+      
+      <div style="margin-top:12px" id="signupFields" style="display:none;">
+        <div style="margin-top:8px">
+          <label>Full Name</label>
+          <input id="auth_name" placeholder="Full Name" />
+        </div>
+        <div style="margin-top:8px">
+          <label>Email</label>
+          <input id="auth_email" type="email" placeholder="email@example.com" />
+        </div>
+      </div>
+      <div style="margin-top:12px">
+        <label>Username</label>
+        <input id="auth_user" placeholder="username" />
+      </div>
+      <div style="margin-top:8px">
+        <label>Password</label>
+        <input id="auth_pass" type="password" placeholder="password" />
+      </div>
+
+      <div style="margin-top:8px; display:none;" id="otpControlGroup">
+        <label>CAPTHA (4-digit simulated)</label>
+        <div class="otp-control">
+          <input id="auth_otp" type="text" placeholder="####" maxlength="4" style="width:100%"/>
+          <button class="btn" id="sendOtpBtn" style="background:var(--accent3); color:var(--btn-text);">Enter Captha</button>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button class="btn" id="loginBtn">Login</button>
+        <button class="btn" id="signupBtn">Sign Up</button>
+        <button class="logoutBtn" id="guestBtn">Continue as Guest</button>
+      </div>
+      <div id="authMsg" class="tiny-muted" style="margin-top:10px"></div>
+    </div>
+  </div>
+
+  <div class="app" id="appRoot">
+    <aside class="sidebar card">
+      <div class="brand">Student Minimal Dashboard</div>
+      <div class="muted small">A compact dashboard for student support tools</div>
+      <nav class="nav" id="nav">
+        <button data-page="home" class="active">Home</button>
+        <button data-page="dropout">Dropout Prediction</button>
+        <button data-page="counselling">Student Counselling</button>
+        <button data-page="routine">Daily Routine Tracker</button>
+        <button data-page="todo">To-Do Maker</button>
+        <button data-page="resume">Resume Builder</button>
+        <button data-page="feedback">Feedback</button>
+      </nav>
+      <div style="margin-top:auto;display:flex;flex-direction:column;gap:6px">
+        <small class="muted">Data stored locally in browser (localStorage)</small>
+        <button class="btn" id="resetAll">Reset All Data</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="header">
+        <div class="card" style="flex:1">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <div style="font-weight:800"><h1>IIMT COLLEGE  OF ENGINEERING, GREATER NOIDA</h1></div>
+              <div class="muted small">A minimal dashboard to predict student dropout risk and provide counseling by developing an AI-based system.
+</div>
+            </div>
+            <div style="text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:8px">
+              <div class="tiny-muted" id="userDisplay">v1.0 • Minimal</div>
+              <div style="display:flex;gap:8px;align-items:center">
+                <button id="logoutBtn" class="logoutBtn" style="display:none">Logout</button>
+                <button id="themeToggleBtn" class="theme-toggle" title="Toggle theme" aria-label="Toggle theme">
+                  <span class="icon">🌓</span> <small id="themeLabel" style="margin-left:6px">Colorful</small>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <section id="pages" style="display:grid">
+        <div data-page="home" class="card page">
+          <h2 style="margin:0 0 8px 0">Home — Overview</h2>
+          <div class="grid">
+            <div class="card">
+              <div class="counter">
+                <div class="tiny">Dropout predictions (last 30)</div>
+                <div class="count" id="countTotal">0</div>
+                <div class="tiny">Low / Medium / High risk</div>
+                <div style="display:flex;gap:6px;margin-top:8px">
+                  <div style="flex:1"><div class="tiny">Low</div><div class="animated-bar" id="barLow" style="width:100%"></div></div>
+                  <div style="flex:1"><div class="tiny">Medium</div><div class="animated-bar" id="barMed" style="width:80%"></div></div>
+                  <div style="flex:1"><div class="tiny">High</div><div class="animated-bar" id="barHigh" style="width:60%"></div></div>
+                </div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="tiny">Quick actions</div>
+              <div style="display:flex;gap:8px;margin-top:12px">
+                <button class="btn" onclick="openPage('dropout')">New Prediction</button>
+                <button class="btn" onclick="openPage('resume')">Build Resume</button>
+              </div>
+            </div>
+            <div class="card">
+              <div class="tiny">Project details</div>
+              <div style="margin-top:8px" class="muted small">This minimal dashboard demonstrates a client-side toolkit for student dropout prediction, counselling, routine tracking, to-do management, resume generation, and feedback capture. All data is stored locally (no server).</div>
+            </div>
+          </div>
+        </div>
+
+        <div data-page="dropout" class="card page" style="display:none">
+          <h2>Dropout Prediction</h2>
+          <div class="row" style="margin-bottom:12px">
+            <div>
+              <label>Student name</label>
+              <input id="s_name" placeholder="Full name" />
+            </div>
+            <div>
+              <label>Student ID</label>
+              <input id="s_id" placeholder="ID or roll no" />
+            </div>
+          </div>
+
+          <div class="row" style="margin-bottom:12px">
+            <div>
+              <label>Attendance %</label>
+              <input id="attendance" type="number" min="0" max="100" value="85" />
+            </div>
+            <div>
+              <label>GPA (0-10)</label>
+              <input id="gpa" type="number" min="0" max="10" step="0.01" value="7.2" />
+            </div>
+          </div>
+
+          <div class="row" style="margin-bottom:12px">
+            <div>
+              <label>Assignments completed %</label>
+              <input id="assignments" type="number" min="0" max="100" value="75" />
+            </div>
+            <div>
+              <label>Engagement score (0-100)</label>
+              <input id="engagement" type="number" min="0" max="100" value="60" />
+            </div>
+          </div>
+
+          <!-- NEW DETAILED PARAMETERS (added, kept in same visual style) -->
+          <div class="row" style="margin-bottom:12px">
+            <div>
+              <label>Parental education</label>
+              <select id="parentEdu">
+                <option value="2">Postgraduate or above</option>
+                <option value="1">High school / Undergraduate</option>
+                <option value="0">Primary or less</option>
+              </select>
+            </div>
+            <div>
+              <label>Financial stress (0-100)</label>
+              <input id="financialStress" type="number" min="0" max="100" value="30" />
+            </div>
+          </div>
+
+          <div class="row" style="margin-bottom:12px">
+            <div>
+              <label>Past backlogs / arrears (count)</label>
+              <input id="backlogs" type="number" min="0" step="1" value="0" />
+            </div>
+            <div>
+              <label>Health / Stress indicator (0-100)</label>
+              <input id="healthStress" type="number" min="0" max="100" value="20" />
+            </div>
+          </div>
+
+          <div class="row" style="margin-bottom:12px">
+            <div>
+              <label>Extra-curricular engagement (0-100)</label>
+              <input id="extracurricular" type="number" min="0" max="100" value="40" />
+            </div>
+            <div>
+              <label>Socioeconomic risk</label>
+              <select id="socio">
+                <option value="0">Low</option>
+                <option value="0.5">Medium</option>
+                <option value="1">High</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:8px;margin-bottom:12px">
+            <button class="btn" id="predictBtn">Predict</button>
+            <button class="btn" id="downloadReport">Download Report</button>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 320px;gap:12px">
+            <div class="card">
+              <div id="predictionResult"><div class="muted">No prediction yet</div></div>
+            </div>
+            <div class="card">
+              <div class="tiny">History</div>
+              <div id="historyList" style="margin-top:8px;max-height:280px;overflow:auto"></div>
+              <div style="display:flex;gap:8px;margin-top:8px">
+                <button class="btn" id="exportCSV">Export CSV</button>
+                <button class="btn" id="clearHistory">Clear</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div data-page="counselling" class="card page" style="display:none">
+          <h2>Student Counselling</h2>
+          <div class="row">
+            <div>
+              <label>Student</label>
+              <input id="c_student" placeholder="Name or ID" />
+            </div>
+            <div>
+              <label>Type</label>
+              <select id="c_type"><option>Academic</option><option>Personal</option><option>Career</option></select>
+            </div>
+          </div>
+          <div style="margin-top:8px">
+            <label>Notes / Session summary</label>
+            <textarea id="c_notes" rows="4" placeholder="Counsellor notes and suggested actions"></textarea>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <button class="btn" id="saveCounsel">Save Session</button>
+            <button class="btn" id="exportCounsel">Export Sessions</button>
+          </div>
+          <div style="margin-top:12px">
+            <div class="tiny">Saved sessions</div>
+            <div id="sessionList" style="margin-top:8px;max-height:120px;overflow:auto"></div>
+          </div>
+
+          <div class="chat-card card" id="chatCard" style="margin-top:12px">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <div style="font-weight:700">Counselling Chatbot</div>
+              <div class="muted small">quick replies • local only</div>
+            </div>
+            <div class="chat-window" id="chatWindow" aria-live="polite"></div>
+            <div style="display:flex;gap:8px;margin-top:8px">
+              <input id="chatInput" placeholder="Ask about attendance, study plan, stress, career..." style="flex:1;padding:10px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text)"/>
+              <button class="btn" id="sendChat">Send</button>
+              <button class="save-chat" id="saveChatNotes" title="Save chat as counselling session">Save Chat</button>
+            </div>
+            <div style="display:flex;gap:8px;margin-top:8px">
+              <button class="theme-toggle" id="clearChat" title="Clear chat">Clear</button>
+              <small class="muted" style="margin-left:auto">Bot uses simple heuristics to provide suggestions</small>
+            </div>
+          </div>
+
+        </div>
+
+        <div data-page="routine" class="card page" style="display:none">
+          <h2>Daily Routine Tracker</h2>
+          <div class="row">
+            <div>
+              <label>Activity</label>
+              <input id="r_activity" placeholder="e.g. Study Data Structures" />
+            </div>
+            <div>
+              <label>Time (HH:MM)</label>
+              <input id="r_time" placeholder="08:30" />
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <button class="btn" id="addRoutine">Add</button>
+            <button class="btn" id="exportRoutine">Export</button>
+            <button class="btn" id="clearRoutine">Clear</button>
+          </div>
+          <div style="margin-top:12px">
+            <div id="routineList" class="list"></div>
+          </div>
+        </div>
+
+        <div data-page="todo" class="card page" style="display:none">
+          <h2>To-Do List Maker</h2>
+          <div style="display:flex;gap:8px">
+            <input id="todoText" placeholder="Add a task" />
+            <button class="btn" id="addTodo">Add</button>
+          </div>
+          <div style="margin-top:10px">
+            <div id="todoList" class="list"></div>
+            <div style="display:flex;gap:8px;margin-top:8px">
+              <button class="btn" id="downloadTodo">Download .txt</button>
+              <button class="btn" id="clearTodo">Clear</button>
+            </div>
+          </div>
+        </div>
+
+        <div data-page="resume" class="card page" style="display:none">
+          <h2>Resume Builder (Engineering)</h2>
+          <div class="row">
+            <div>
+              <label>Full name</label>
+              <input id="r_name" placeholder="Your name" />
+            </div>
+            <div>
+              <label>Email</label>
+              <input id="r_email" placeholder="you@example.com" />
+            </div>
+          </div>
+          <div class="row">
+            <div>
+              <label>Phone</label>
+              <input id="r_phone" placeholder="+91 98765 43210" />
+            </div>
+            <div>
+              <label>GitHub / Portfolio URL</label>
+              <input id="r_url" placeholder="github.com/you" />
+            </div>
+          </div>
+          <div style="margin-top:8px">
+            <label>Education (comma separated: Degree | Institute | Year | CPI)</label>
+            <input id="r_edu" placeholder="B.Tech | ABC College | 2024 | 8.1" />
+          </div>
+          <div style="margin-top:8px">
+            <label>Skills (comma separated)</label>
+            <input id="r_skills" placeholder="Python, C, Data Structures, ML" />
+          </div>
+          <div style="margin-top:8px">
+            <label>Projects (one per line: Title - short description)</label>
+            <textarea id="r_projects" rows="4" placeholder="Project A - built ..."></textarea>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <button class="btn" id="generateResume">Generate PDF</button>
+            <button class="btn" id="previewResume">Preview JSON</button>
+          </div>
+          <div id="resumePreview" style="margin-top:12px"></div>
+        </div>
+
+        <div data-page="feedback" class="card page" style="display:none">
+          <h2>Feedback</h2>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div>
+              <label>Student feedback</label>
+              <textarea id="fb_student" rows="6" placeholder="Suggestions for teachers or system"></textarea>
+              <div style="display:flex;gap:8px;margin-top:8px">
+                <button class="btn" id="saveFbStudent">Submit</button>
+                <button class="btn" id="downloadFbStudent">Download</button>
+              </div>
+            </div>
+            <div>
+              <label>Teacher feedback</label>
+              <textarea id="fb_teacher" rows="6" placeholder="Suggestions about students or courses"></textarea>
+              <div style="display:flex;gap:8px;margin-top:8px">
+                <button class="btn" id="saveFbTeacher">Submit</button>
+                <button class="btn" id="downloadFbTeacher">Download</button>
+              </div>
+            </div>
+          </div>
+          <div style="margin-top:8px">
+            <div class="tiny">Submitted feedback</div>
+            <div id="feedbackList" style="margin-top:8px;max-height:220px;overflow:auto"></div>
+          </div>
+        </div>
+
+      </section>
+
+      <footer class="muted">Built for demo • All data local • Open-source minimal UI</footer>
+    </main>
+  </div>
+
+  <script>
+    // --- simple auth helpers (kept from the file, unchanged behaviour) ---
+    const authOverlay = document.getElementById('loginOverlay');
+    const loginBtn = document.getElementById('loginBtn');
+    const signupBtn = document.getElementById('signupBtn');
+    const guestBtn = document.getElementById('guestBtn');
+    const authMsg = document.getElementById('authMsg');
+    const userDisplay = document.getElementById('userDisplay');
+    const logoutBtn = document.getElementById('logoutBtn');
+
+    // NEW ELEMENTS FOR SIGNUP/OTP
+    const signupFields = document.getElementById('signupFields');
+    const otpControlGroup = document.getElementById('otpControlGroup');
+    const sendOtpBtn = document.getElementById('sendOtpBtn');
+    const authName = document.getElementById('auth_name');
+    const authEmail = document.getElementById('auth_email');
+    const authOtp = document.getElementById('auth_otp');
+    let isSignupMode = false;
+    let simulatedOTP = null;
+
+    function authStorageGet(){ try{return JSON.parse(localStorage.getItem('dashboard_users')||'{}')}catch(e){return {}} }
+    // Modified to store name and email
+    function authStorageSet(obj){ localStorage.setItem('dashboard_users', JSON.stringify(obj)) }
+
+    function showAuthOverlay(show){ authOverlay.style.display = show ? '' : 'none'; document.getElementById('appRoot').style.filter = show ? 'blur(3px) brightness(.95)' : 'none'; }
+
+    function setLoggedIn(username){ sessionStorage.setItem('dashboard_user', username); userDisplay.textContent = username + ' • v1.0'; logoutBtn.style.display = ''; showAuthOverlay(false); }
+    function clearSession(){ sessionStorage.removeItem('dashboard_user'); userDisplay.textContent = 'v1.0 • Minimal'; logoutBtn.style.display = 'none'; }
+
+    // quick hash (not secure) — for demo only. We use btoa to avoid storing plain text.
+    function quickHash(s){ try{return btoa(s)}catch(e){return s} }
+
+    // Toggle between login and signup view
+    function setAuthMode(mode){
+      isSignupMode = mode === 'signup';
+      if(isSignupMode){
+        signupFields.style.display = 'block';
+        otpControlGroup.style.display = 'block';
+        loginBtn.style.display = 'none';
+        signupBtn.textContent = 'Verify & Sign Up';
+        sendOtpBtn.style.display = 'block';
+      } else {
+        signupFields.style.display = 'none';
+        otpControlGroup.style.display = 'none';
+        loginBtn.style.display = 'block';
+        signupBtn.textContent = 'Sign Up';
+        simulatedOTP = null; // Clear OTP state
+        authOtp.value = '';
+        authMsg.textContent = '';
+      }
+    }
+
+    // New: Send OTP Simulation
+    sendOtpBtn.addEventListener('click', ()=>{
+      const u = document.getElementById('auth_user').value.trim();
+      const n = authName.value.trim();
+      const e = authEmail.value.trim();
+      if(!u || !n || !e) return authMsg.textContent = 'Enter full name, email, and username first.';
+
+      // Simulate OTP generation (4-digit random number)
+      simulatedOTP = Math.floor(1000 + Math.random() * 9000).toString();
+      authMsg.textContent = `A SIMULATED OTP has been generated: ${simulatedOTP}. Enter it above.`;
+      sendOtpBtn.disabled = true;
+      setTimeout(() => {
+        sendOtpBtn.disabled = false;
+      }, 10000); // 10 second cooldown for resend
+    });
+
+    // auth actions
+    loginBtn.addEventListener('click', ()=>{
+      if(isSignupMode) setAuthMode('login'); // Switch to login view if accidentally in signup mode
+      const u = document.getElementById('auth_user').value.trim(); const p = document.getElementById('auth_pass').value;
+      if(!u || !p) return authMsg.textContent = 'Enter username and password';
+      const users = authStorageGet();
+      if(!users[u]) return authMsg.textContent = 'User not found — please sign up';
+      // Hash check
+      if(users[u].password !== quickHash(p)) return authMsg.textContent = 'Incorrect password';
+      setLoggedIn(u); authMsg.textContent = 'Signed in';
+    });
+
+    signupBtn.addEventListener('click', ()=>{
+      if(!isSignupMode){
+        setAuthMode('signup');
+        return;
+      }
+      // Actual signup logic
+      const u = document.getElementById('auth_user').value.trim();
+      const p = document.getElementById('auth_pass').value;
+      const n = authName.value.trim();
+      const e = authEmail.value.trim();
+      const otp = authOtp.value.trim();
+
+      if(!n || !e || !u || !p) return authMsg.textContent = 'Fill all details (Name, Email, Username, Password).';
+      if(!simulatedOTP) return authMsg.textContent = 'Please click "Send OTP" first.';
+
+      // OTP Verification
+      if(otp !== simulatedOTP) return authMsg.textContent = 'Incorrect OTP.';
+
+      const users = authStorageGet();
+      if(users[u]) return authMsg.textContent = 'User exists — please try login.';
+
+      // Store all user data
+      users[u] = {
+        password: quickHash(p),
+        fullName: n,
+        email: e,
+        signedUp: new Date().toISOString()
+      };
+      authStorageSet(users);
+      setLoggedIn(u);
+      setAuthMode('login'); // Reset view state
+      authMsg.textContent = 'Account created and verified!';
+    });
+
+    guestBtn.addEventListener('click', ()=>{ setAuthMode('login'); setLoggedIn('Guest'); authMsg.textContent = 'Continuing as guest'; });
+    logoutBtn.addEventListener('click', ()=>{ if(confirm('Log out?')){ clearSession(); showAuthOverlay(true); setAuthMode('login'); } });
+
+    // on load, check session
+    if(sessionStorage.getItem('dashboard_user')){ setLoggedIn(sessionStorage.getItem('dashboard_user')); } else { showAuthOverlay(true); setAuthMode('login'); }
+
+    // --- theme switcher (persisted in localStorage) ---
+    const themeToggleBtn = document.getElementById('themeToggleBtn');
+    const themeLabel = document.getElementById('themeLabel');
+    const body = document.body;
+    const THEME_KEY = 'dashboard_theme'; // values: 'colorful' or 'dark'
+
+    function applyTheme(t){
+      if(t === 'dark'){ body.classList.add('theme-dark'); themeLabel.textContent = 'Dark'; themeToggleBtn.setAttribute('data-theme','dark'); }
+      else { body.classList.remove('theme-dark'); themeLabel.textContent = 'Colorful'; themeToggleBtn.setAttribute('data-theme','light'); }
+      localStorage.setItem(THEME_KEY, t);
+    }
+    themeToggleBtn.addEventListener('click', ()=>{
+      const cur = localStorage.getItem(THEME_KEY) || 'colorful';
+      applyTheme(cur === 'dark' ? 'colorful' : 'dark');
+    });
+    // initialize theme on load
+    (function(){ const saved = localStorage.getItem(THEME_KEY) || 'colorful'; applyTheme(saved); })();
+
+    // --- navigation ---
+    const nav = document.getElementById('nav');
+    const pages = document.querySelectorAll('.page');
+    nav.addEventListener('click', e=>{
+      if(e.target.dataset.page) openPage(e.target.dataset.page);
+    });
+    function openPage(name){
+      document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active', b.dataset.page===name));
+      pages.forEach(p=>p.style.display = p.dataset.page===name ? '' : 'none');
+    }
+
+    // --- storage helpers ---
+    const storage = {
+      get(k, def){try{return JSON.parse(localStorage.getItem(k)) ?? def}catch(e){return def}},
+      set(k,v){localStorage.setItem(k,JSON.stringify(v))}
+    }
+
+    // --- HOME counters ---
+    function updateHome(){
+      const hist = storage.get('pred_history',[]).slice(-30);
+      document.getElementById('countTotal').textContent = hist.length;
+      const counts = {low:0,med:0,high:0};
+      hist.forEach(h=>counts[h.level] = (counts[h.level]||0)+1);
+      const total = Math.max(1,hist.length);
+      document.getElementById('barLow').style.transform = `scaleX(${(counts.low/total).toFixed(2)})`;
+      document.getElementById('barMed').style.transform = `scaleX(${(counts.med/total).toFixed(2)})`;
+      document.getElementById('barHigh').style.transform = `scaleX(${(counts.high/total).toFixed(2)})`;
+    }
+
+    // --- improved dropout prediction model (detailed factors) ---
+    function predict(features){
+      // normalize and derive risk-contributing terms
+      const a = features.attendance/100; // higher attendance -> lower risk
+      const g = features.gpa/10;         // higher GPA -> lower risk
+      const asg = features.assignments/100;
+      const e = features.engagement/100;
+      const socio = features.socio;      // already 0..1, higher -> more risk
+
+      // new normalized features
+      // parental education: 2 (highest) -> convert so higher numeric value reduces risk
+      // We'll compute pe_risk = (2 - val)/2 so pe_risk in [0,1], higher means more risk
+      const pe_risk = (2 - (features.parentEdu||0))/2;
+
+      const fin = (features.financialStress||0)/100; // higher -> more risk
+      // backlogs: convert to a 0..1 scale assuming 0..6 typical range; cap at 6
+      const back = Math.min(6, features.backlogs||0) / 6;
+      const health = (features.healthStress||0)/100; // higher stress -> more risk
+      const extra = (features.extracurricular||0)/100; // higher -> lower risk
+
+      // Weights chosen heuristically to balance contributions
+      // negative weights reduce risk when feature improves (attendance, gpa, assignments, engagement, extracurricular)
+      // positive weights increase risk when feature worsens (socio, financial stress, backlogs, health, parental-edu risk)
+      const w = {
+        attendance: -1.1,
+        gpa: -1.0,
+        assignments: -0.8,
+        engagement: -0.7,
+        extracurricular: -0.6,
+        socio: 1.6,
+        financial: 1.2,
+        backlogs: 0.9,
+        health: 0.9,
+        parentalRisk: 1.0,
+        bias: 0.4
+      };
+
+      const score = w.attendance * a
+                  + w.gpa * g
+                  + w.assignments * asg
+                  + w.engagement * e
+                  + w.extracurricular * extra
+                  + w.socio * socio
+                  + w.financial * fin
+                  + w.backlogs * back
+                  + w.health * health
+                  + w.parentalRisk * pe_risk
+                  + w.bias;
+
+      const prob = 1/(1+Math.exp(-score)); // logistic mapping to [0,1]
+      let level = 'low';
+      if(prob>0.70) level='high';
+      else if(prob>0.40) level='med';
+
+      const suggestions = generateSuggestions(level, features, {pe_risk, fin, back, health, extra});
+      return {prob: +(prob.toFixed(3)), level, suggestions};
+    }
+
+    function generateSuggestions(level, f, norms){
+      const base = [];
+      if(level==='high'){
+        base.push('Immediate counselling recommended.');
+        base.push('Increase attendance — set weekly check-ins and targets (aim 80%+).');
+        base.push('Meet academic advisor to rework course load and tackle backlog items.');
+        base.push('Break assignments into small tasks and use reminders.');
+      } else if(level==='med'){
+        base.push('Monitor progress closely and set a short-term improvement plan (4–6 weeks).');
+        base.push('Use peer study groups, office hours, and scheduled revision.');
+        base.push('Set weekly measurable goals and review.');
+      } else {
+        base.push('Student is low risk — keep current routine and maintain mentorship.');
+        base.push('Encourage applied projects and career activities to strengthen engagement.');
+      }
+
+      // Tailored tips based on new factors
+      if(f.gpa < 6.5) base.push('GPA below 6.5: prioritize concept revision, small projects, and timed practice tests.');
+      if(f.assignments < 70) base.push('Low assignment completion: split tasks into focused 2-hour sessions and track progress.');
+      if(norms.fin > 0.6) base.push('Financial stress is high: consider financial aid, scholarships, or fee deferment conversations.');
+      if(norms.back > 0.33) base.push('Multiple backlogs detected: create a backlog-clear schedule and seek targeted tutoring.');
+      if(norms.health > 0.5) base.push('High stress/health indicators: recommend campus counselling, stress management techniques, and medical checkups.');
+      if(norms.parentalRisk > 0.6) base.push('Lower parental education support: provide extra academic mentoring and parental outreach programs.');
+      if(norms.extra < 0.3) base.push('Low extra-curricular engagement: encourage balanced activities to improve motivation and campus connection.');
+
+      return base.slice(0, 8); // limit suggestions to a manageable number
+    }
+
+    // --- prediction UI ---
+    document.getElementById('predictBtn').addEventListener('click', ()=>{
+      const f = {
+        attendance: +document.getElementById('attendance').value || 0,
+        gpa: +document.getElementById('gpa').value || 0,
+        assignments: +document.getElementById('assignments').value || 0,
+        engagement: +document.getElementById('engagement').value || 0,
+        socio: +document.getElementById('socio').value || 0,
+        // new features below
+        parentEdu: +document.getElementById('parentEdu').value || 0,
+        financialStress: +document.getElementById('financialStress').value || 0,
+        backlogs: +document.getElementById('backlogs').value || 0,
+        healthStress: +document.getElementById('healthStress').value || 0,
+        extracurricular: +document.getElementById('extracurricular').value || 0
+      };
+      const name = document.getElementById('s_name').value || 'Unknown';
+      const id = document.getElementById('s_id').value || '';
+      const res = predict(f);
+      const out = {time: new Date().toISOString(), name, id, features: f, ...res};
+      const hist = storage.get('pred_history', []);
+      hist.push(out); storage.set('pred_history', hist);
+      showPrediction(out);
+      renderHistory(); updateHome();
+    });
+
+    function showPrediction(out){
+      const el = document.getElementById('predictionResult');
+      el.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div style="font-weight:700">${out.name} ${out.id?'- '+out.id:''}</div>
+            <div class="muted small">Predicted risk: <strong>${out.level.toUpperCase()}</strong> (prob ${out.prob})</div>
+          </div>
+          <div style="text-align:right">
+            <div class="tiny">${new Date(out.time).toLocaleString()}</div>
+          </div>
+        </div>
+        <hr style="border:none;border-top:1px solid var(--border);margin:10px 0">
+        <div class="tiny">Features</div>
+        <ul style="margin:8px 0 0 16px">
+          <li class="small">Attendance: ${out.features.attendance}%</li>
+          <li class="small">GPA: ${out.features.gpa}</li>
+          <li class="small">Assignments: ${out.features.assignments}%</li>
+          <li class="small">Engagement: ${out.features.engagement}</li>
+          <li class="small">Parental education: ${['Primary or less','High school / Undergraduate','Postgraduate or above'][out.features.parentEdu]}</li>
+          <li class="small">Financial stress: ${out.features.financialStress}</li>
+          <li class="small">Backlogs: ${out.features.backlogs}</li>
+          <li class="small">Health stress: ${out.features.healthStress}</li>
+          <li class="small">Extra-curricular: ${out.features.extracurricular}</li>
+          <li class="small">Socioeconomic risk: ${out.features.socio}</li>
+        </ul>
+        <hr style="border:none;border-top:1px solid var(--border);margin:10px 0">
+        <div class="tiny">Personalized suggestions</div>
+        <ul style="margin:8px 0 0 16px">${out.suggestions.map(s=>`<li class=\"small\">${s}</li>`).join('')}</ul>
+      `;
+    }
+
+    // history rendering
+    function renderHistory(){
+      const hist = storage.get('pred_history',[]).slice().reverse();
+      const container = document.getElementById('historyList'); container.innerHTML = '';
+      hist.forEach((h, i)=>{
+        const d = document.createElement('div'); d.className='item';
+        d.innerHTML = `<div><div style=\"font-weight:600\">${h.name || 'Unknown'}</div><div class=\"muted small\">${new Date(h.time).toLocaleString()}</div></div><div style=\"text-align:right\"><div class=\"small\">${h.level.toUpperCase()}</div><button class=\"btn\" data-i=\"${i}\">Load</button></div>`;
+        container.appendChild(d);
+        d.querySelector('button').addEventListener('click', ()=>{
+          document.getElementById('s_name').value = h.name||'';
+          document.getElementById('s_id').value = h.id||'';
+          document.getElementById('attendance').value = h.features.attendance;
+          document.getElementById('gpa').value = h.features.gpa;
+          document.getElementById('assignments').value = h.features.assignments;
+          document.getElementById('engagement').value = h.features.engagement;
+          document.getElementById('parentEdu').value = h.features.parentEdu ?? '2';
+          document.getElementById('financialStress').value = h.features.financialStress ?? 0;
+          document.getElementById('backlogs').value = h.features.backlogs ?? 0;
+          document.getElementById('healthStress').value = h.features.healthStress ?? 0;
+          document.getElementById('extracurricular').value = h.features.extracurricular ?? 0;
+          document.getElementById('socio').value = h.features.socio;
+          showPrediction(h);
+        });
+      });
+    }
+
+    document.getElementById('clearHistory').addEventListener('click', ()=>{ if(confirm('Clear prediction history?')){storage.set('pred_history',[]); renderHistory(); updateHome(); document.getElementById('predictionResult').innerHTML='<div class="muted">No prediction yet</div>'}})
+    document.getElementById('exportCSV').addEventListener('click', ()=>{
+      const hist = storage.get('pred_history',[]);
+      if(!hist.length) return alert('No history');
+      const rows = [['time','name','id','attendance','gpa','assignments','engagement','parentEdu','financialStress','backlogs','healthStress','extracurricular','socio','prob','level']];
+      hist.forEach(h=>rows.push([h.time,h.name,h.id,h.features.attendance,h.features.gpa,h.features.assignments,h.features.engagement,h.features.parentEdu,h.features.financialStress,h.features.backlogs,h.features.healthStress,h.features.extracurricular,h.features.socio,h.prob,h.level]));
+      const csv = rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""') }"`).join(',')).join('\n');
+      downloadBlob(csv,'predictions.csv','text/csv');
+    });
+
+    // download report for last prediction
+    document.getElementById('downloadReport').addEventListener('click', async ()=>{
+      const hist = storage.get('pred_history',[]);
+      if(!hist.length) return alert('No predictions yet');
+      const last = hist[hist.length-1];
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      let y = 18;
+      doc.setFontSize(14); doc.text('Dropout Prediction Report',14,y);
+      doc.setFontSize(10); doc.text(`Name: ${last.name}`,14,y+10); doc.text(`ID: ${last.id || '-'} `,14,y+16);
+      doc.text(`Date: ${new Date(last.time).toLocaleString()}`,14,y+22);
+      doc.text(`Risk: ${last.level.toUpperCase()} (prob: ${last.prob})`,14,y+30);
+      doc.text('Features:',14,y+38); doc.setFontSize(9);
+      doc.text(`- Attendance: ${last.features.attendance}%`,18,y+46);
+      doc.text(`- GPA: ${last.features.gpa}`,18,y+52);
+      doc.text(`- Assignments: ${last.features.assignments}%`,18,y+58);
+      doc.text(`- Engagement: ${last.features.engagement}`,18,y+64);
+      doc.text(`- Parental education: ${['Primary or less','High school / Undergraduate','Postgraduate or above'][last.features.parentEdu]}`,18,y+70);
+      doc.text(`- Financial stress: ${last.features.financialStress}`,18,y+76);
+      doc.text(`- Backlogs: ${last.features.backlogs}`,18,y+82);
+      doc.text(`- Health stress: ${last.features.healthStress}`,18,y+88);
+      doc.text(`- Extra-curricular: ${last.features.extracurricular}`,18,y+94);
+      doc.text(`- Socioeconomic risk: ${last.features.socio}`,18,y+100);
+      doc.text('Suggestions:',14,y+110);
+      last.suggestions.forEach((s,i)=>{
+        const yRow = y+118 + i*6;
+        if(yRow > 270){ doc.addPage(); y = 18; doc.setFontSize(9); doc.text(`${i+1}. ${s}`,14, y); }
+        else doc.text(`${i+1}. ${s}`,18,y+118 + i*6);
+      });
+      doc.save(`dropout_report_${(last.id||'student').replace(/\s+/g,'_')}.pdf`);
+    });
+
+    function downloadBlob(content, filename, type){
+      const blob = new Blob([content], {type});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = filename; a.click(); URL.revokeObjectURL(url);
+    }
+
+    // --- Counselling --- (with sessions & chatbot)
+    function renderSessions(){
+      const sessions = storage.get('c_sessions',[]).slice().reverse();
+      const el = document.getElementById('sessionList'); el.innerHTML='';
+      sessions.forEach(s=>{
+        const d=document.createElement('div'); d.className='item';
+        d.innerHTML=`<div><div style=\"font-weight:600\">${s.student||'Unknown'}</div><div class=\"muted small\">${new Date(s.time).toLocaleString()}</div></div><div style=\"text-align:right\"><div class=\"small\">${s.type}</div><button class=\"btn\">Export</button></div>`;
+        el.appendChild(d);
+        d.querySelector('button').addEventListener('click', ()=>{
+          const { jsPDF } = window.jspdf; const doc = new jsPDF(); doc.setFontSize(12); doc.text('Counselling Session',14,18); doc.setFontSize(10); doc.text(`Student: ${s.student}`,14,28); doc.text(`Type: ${s.type}`,14,34); doc.text(`Date: ${new Date(s.time).toLocaleString()}`,14,40); doc.text('Notes:',14,48); doc.setFontSize(9); doc.text(s.notes,14,56); doc.save(`counselling_${(s.student||'session').replace(/\s+/g,'_')}.pdf`);
+        });
+      });
+    }
+    document.getElementById('saveCounsel').addEventListener('click', ()=>{
+      const s = {student: document.getElementById('c_student').value||'Unknown', type: document.getElementById('c_type').value, notes: document.getElementById('c_notes').value||'', time: new Date().toISOString()};
+      const arr = storage.get('c_sessions',[]); arr.push(s); storage.set('c_sessions',arr); renderSessions(); document.getElementById('c_student').value=''; document.getElementById('c_notes').value='';
+    });
+    document.getElementById('exportCounsel').addEventListener('click', ()=>{
+      const arr = storage.get('c_sessions',[]);
+      if(!arr.length) return alert('No sessions');
+      downloadBlob(JSON.stringify(arr,null,2),'counselling_sessions.json','application/json');
+    });
+
+    // --- Chatbot logic (simple, local rule-based) ---
+    const chatWindow = document.getElementById('chatWindow');
+    const chatInput = document.getElementById('chatInput');
+    const sendChat = document.getElementById('sendChat');
+    const clearChat = document.getElementById('clearChat');
+    const saveChatNotes = document.getElementById('saveChatNotes');
+
+    function addBubble(text, who='bot'){
+      const b = document.createElement('div'); b.className = 'bubble ' + (who==='user' ? 'user' : 'bot'); b.innerText = text;
+      chatWindow.appendChild(b);
+      chatWindow.scrollTop = chatWindow.scrollHeight;
+    }
+
+    function botReply(userText){
+      const t = userText.toLowerCase();
+      // If user mentions a student's features, try to find last prediction and personalize
+      const lastPred = (storage.get('pred_history',[]) || []).slice(-1)[0];
+
+      // simple keyword heuristics
+      if(/attendance|absen|present/.test(t)){
+        if(lastPred) return `Attendance guidance: aim for 80%+. For ${lastPred.name || 'the student'}, current attendance is ${lastPred.features.attendance}%. Consider daily check-ins and short attendance goals.`;
+        return 'Attendance guidance: aim for 80%+. Break attendance improvements into small weekly targets (e.g., +5% per week).';
+      }
+      if(/gpa|grade|cgpa|score/.test(t)){
+        if(lastPred) return `GPA advice: focus on concept revision, past year papers, and small projects. ${lastPred.name ? `Current GPA: ${lastPred.features.gpa}` : ''}`;
+        return 'GPA advice: make a revision plan, focus on weak subjects, and practice past exam questions.';
+      }
+      if(/assign|homework|submission/.test(t)){
+        return 'Assignment tips: divide tasks into 2-hour focused blocks, set reminders, and review completed work weekly.';
+      }
+      if(/stress|anxiet|depres|mental/.test(t)){
+        return 'If stress or anxiety is present: recommend short breaks, breathing exercises, campus counselling, and reaching out to a trusted mentor. If severe, refer to a mental health professional.';
+      }
+      if(/career|job|intern|interview/.test(t)){
+        return 'Career tips: build a small portfolio project, prepare a one-minute elevator pitch, practice common interview questions, and update your resume with measurable outcomes.';
+      }
+      if(/study|routine|schedule/.test(t)){
+        return 'Study plan suggestion: use the Pomodoro method (25min focus / 5min break), schedule 3 major tasks per day, and review weekly progress.';
+      }
+      if(/hello|hi|hey/.test(t)){
+        return 'Hello — I can help with attendance, GPA, assignments, study plans, stress, and career tips. Ask me about any of these.';
+      }
+      // fallback: combine generic heuristics and possible prediction suggestions
+      if(lastPred){
+        return `Based on the last prediction for ${lastPred.name || 'student'} (risk ${lastPred.level.toUpperCase()}), recommended next steps include:\n- ${lastPred.suggestions.slice(0,3).join('\n- ')}\nIf you'd like, click "Save Chat" to store this conversation as a session note.`;
+      }
+      return 'I am a basic counselling assistant — ask about attendance, GPA, assignments, study schedule, or career. If unsure, try: "How can the student improve attendance?"';
+    }
+
+    sendChat.addEventListener('click', ()=>{ const txt = chatInput.value.trim(); if(!txt) return; addBubble(txt,'user'); chatInput.value=''; setTimeout(()=>addBubble('...', 'bot'), 150); setTimeout(()=>{ // simulate thinking
+        chatWindow.lastElementChild.remove(); // remove '...'
+        const reply = botReply(txt);
+        addBubble(reply,'bot');
+      }, 450);
+    });
+
+    chatInput.addEventListener('keypress', (e)=>{ if(e.key === 'Enter') { e.preventDefault(); sendChat.click(); }});
+    clearChat.addEventListener('click', ()=>{ if(confirm('Clear chat?')){ chatWindow.innerHTML=''; }});
+
+    // Save chat as a counselling session (captures last N messages)
+    saveChatNotes.addEventListener('click', ()=>{
+      const messages = Array.from(chatWindow.querySelectorAll('.bubble')).map(b=>({who: b.classList.contains('user') ? 'user' : 'bot', text: b.innerText}));
+      if(!messages.length) return alert('No chat messages to save');
+      const summary = messages.map(m=>`${m.who === 'user' ? 'User' : 'Bot'}: ${m.text}`).join('\n');
+      const s = {student: document.getElementById('c_student').value||'ChatStudent', type: document.getElementById('c_type').value, notes: summary, time: new Date().toISOString()};
+      const arr = storage.get('c_sessions',[]); arr.push(s); storage.set('c_sessions',arr); renderSessions(); alert('Chat saved as counselling session');
+    });
+
+    // --- Routine tracker ---
+    function renderRoutine(){
+      const list = storage.get('routines',[]);
+      const el = document.getElementById('routineList'); el.innerHTML='';
+      list.forEach((r,i)=>{
+        const d=document.createElement('div'); d.className='item'; d.innerHTML=`<div><div style=\"font-weight:600\">${r.activity}</div><div class=\"muted small\">${r.time}</div></div><div style=\"text-align:right\"><input type=\"checkbox\" ${r.done? 'checked':''} data-i=\"${i}\"></div>`;
+        el.appendChild(d);
+        d.querySelector('input').addEventListener('change', (ev)=>{ const arr=storage.get('routines',[]); arr[i].done = ev.target.checked; storage.set('routines',arr); renderRoutine(); });
+      });
+    }
+    document.getElementById('addRoutine').addEventListener('click', ()=>{
+      const a=document.getElementById('r_activity').value.trim(); const t=document.getElementById('r_time').value.trim();
+      if(!a) return alert('Add activity');
+      const arr = storage.get('routines',[]); arr.push({activity:a,time:t,done:false}); storage.set('routines',arr); document.getElementById('r_activity').value=''; document.getElementById('r_time').value=''; renderRoutine();
+    });
+    document.getElementById('clearRoutine').addEventListener('click', ()=>{ if(confirm('Clear routines?')){storage.set('routines',[]); renderRoutine();}})
+    document.getElementById('exportRoutine').addEventListener('click', ()=>{ const arr=storage.get('routines',[]); downloadBlob(JSON.stringify(arr,null,2),'routines.json','application/json'); })
+
+    // --- ToDo ---
+    function renderTodos(){ const arr=storage.get('todos',[]); const el=document.getElementById('todoList'); el.innerHTML=''; arr.forEach((t,i)=>{ const d=document.createElement('div'); d.className='item'; d.innerHTML=`<div><input type=\"checkbox\" ${t.done? 'checked':''} data-i=\"${i}\"> <span class=\"small\">${t.text}</span></div><div><button class=\"btn\" data-i=\"${i}\">Del</button></div>`; el.appendChild(d); d.querySelector('input').addEventListener('change', ev=>{ const a=storage.get('todos',[]); a[i].done = ev.target.checked; storage.set('todos',a); renderTodos(); }); d.querySelector('button').addEventListener('click', ()=>{ const a=storage.get('todos',[]); a.splice(i,1); storage.set('todos',a); renderTodos(); }); }); }
+    document.getElementById('addTodo').addEventListener('click', ()=>{ const t=document.getElementById('todoText').value.trim(); if(!t) return; const arr=storage.get('todos',[]); arr.push({text:t,done:false}); storage.set('todos',arr); document.getElementById('todoText').value=''; renderTodos(); });
+    document.getElementById('clearTodo').addEventListener('click', ()=>{ if(confirm('Clear to-dos?')){ storage.set('todos',[]); renderTodos(); }});
+    document.getElementById('downloadTodo').addEventListener('click', ()=>{ const arr=storage.get('todos',[]); if(!arr.length) return alert('No items'); const text = arr.map(t=>`[${t.done? 'x':' '}] ${t.text}`).join('\n'); downloadBlob(text,'todo.txt','text/plain'); });
+
+    // --- Resume builder ---
+    document.getElementById('generateResume').addEventListener('click', ()=>{
+      const data = collectResume(); const { jsPDF } = window.jspdf; const doc = new jsPDF(); let y=18; doc.setFontSize(14); doc.text(data.name,14,y); doc.setFontSize(10); doc.text(data.email + ' • ' + data.phone + (data.url? ' • '+data.url : ''),14,y+8); y+=18; doc.setFontSize(12); doc.text('Education',14,y); y+=6; doc.setFontSize(9);
+      data.education.forEach(ed=>{ doc.text(`- ${ed}`,14,y); y+=6; }); y+=2; doc.setFontSize(12); doc.text('Skills',14,y); y+=6; doc.setFontSize(9); doc.text(data.skills.join(', '),14,y); y+=8; doc.setFontSize(12); doc.text('Projects',14,y); y+=6; doc.setFontSize(9); data.projects.forEach(p=>{ doc.text(`- ${p}`,14,y); y+=6; });
+      doc.save((data.name||'resume').replace(/\s+/g,'_') + '.pdf');
+    });
+    document.getElementById('previewResume').addEventListener('click', ()=>{ const data = collectResume(); document.getElementById('resumePreview').innerText = JSON.stringify(data,null,2); });
+    function collectResume(){ const name=document.getElementById('r_name').value||'Name'; const email=document.getElementById('r_email').value||''; const phone=document.getElementById('r_phone').value||''; const url=document.getElementById('r_url').value||''; const education = (document.getElementById('r_edu').value||'').split('\n').map(s=>s.trim()).filter(Boolean); const skills = (document.getElementById('r_skills').value||'').split(',').map(s=>s.trim()).filter(Boolean); const projects = (document.getElementById('r_projects').value||'').split('\n').map(s=>s.trim()).filter(Boolean); return {name,email,phone,url,education,skills,projects}; }
+
+    // --- Feedback ---
+    function renderFeedback(){ const fb = storage.get('feedback',[]).slice().reverse(); const el=document.getElementById('feedbackList'); el.innerHTML=''; fb.forEach(f=>{ const d=document.createElement('div'); d.className='item'; d.innerHTML=`<div><div style=\"font-weight:600\">${f.type}</div><div class=\"muted small\">${new Date(f.time).toLocaleString()}</div><div class=\"small\">${f.text}</div></div>`; el.appendChild(d); }); }
+    document.getElementById('saveFbStudent').addEventListener('click', ()=>{ const t=document.getElementById('fb_student').value.trim(); if(!t) return alert('Enter feedback'); const arr=storage.get('feedback',[]); arr.push({type:'Student',text:t,time:new Date().toISOString()}); storage.set('feedback',arr); document.getElementById('fb_student').value=''; renderFeedback(); });
+    document.getElementById('saveFbTeacher').addEventListener('click', ()=>{ const t=document.getElementById('fb_teacher').value.trim(); if(!t) return alert('Enter feedback'); const arr=storage.get('feedback',[]); arr.push({type:'Teacher',text:t,time:new Date().toISOString()}); storage.set('feedback',arr); document.getElementById('fb_teacher').value=''; renderFeedback(); });
+    document.getElementById('downloadFbStudent').addEventListener('click', ()=>{ const arr = storage.get('feedback',[]).filter(f=>f.type==='Student'); if(!arr.length) return alert('No student feedback'); downloadBlob(arr.map(f=>`- ${f.time} : ${f.text}`).join('\n\n'),'student_feedback.txt','text/plain'); });
+    document.getElementById('downloadFbTeacher').addEventListener('click', ()=>{ const arr = storage.get('feedback',[]).filter(f=>f.type==='Teacher'); if(!arr.length) return alert('No teacher feedback'); downloadBlob(arr.map(f=>`- ${f.time} : ${f.text}`).join('\n\n'),'teacher_feedback.txt','text/plain'); });
+
+    // --- Reset all ---
+    document.getElementById('resetAll').addEventListener('click', ()=>{ if(confirm('Reset all local data?')){ localStorage.clear(); sessionStorage.clear(); init(); showAuthOverlay(true); setAuthMode('login'); }});
+
+    // --- utilities and initialization ---
+    function init(){ renderHistory(); renderSessions(); renderRoutine(); renderTodos(); renderFeedback(); updateHome(); loadChatSample(); }
+    function loadChatSample(){
+      // friendly initial message
+      addBubble('Hi — I am the counselling assistant. Ask about attendance, GPA, assignments, study plans, stress, or careers. The chat is stored locally only.', 'bot');
+    }
+    init();
+
+  </script>
+</body>
+</html>
